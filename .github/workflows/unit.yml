@@ -34,4 +34,4 @@ jobs:
           tox --version
       
       - name: Run tox
-      - run: tox -e flake8, unit
+        run: tox -e flake8, unit
