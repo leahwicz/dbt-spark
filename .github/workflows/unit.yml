@@ -1,6 +1,6 @@
 # This is a basic workflow to help you get started with Actions
 
-name: Unit Tests
+name: Unit Tests & Linting
 
 # Controls when the workflow will run
 on:
@@ -14,8 +14,17 @@ on:
   workflow_dispatch:
 
 jobs:
-  unit:
+  testing:
+    name: ${{ matrix.toxenv }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toxenv: [flake8, unit]
+
+    env:
+      TOXENV: ${{ matrix.toxenv }}
+      PYTEST_ADDOPTS: "-v --color=yes"
     steps:
       - name: Setup Python
         uses: actions/setup-python@v2.2.2
@@ -35,4 +44,4 @@ jobs:
           tox --version
       
       - name: Run tox
-        run: tox -e flake8,unit
+        run: tox
