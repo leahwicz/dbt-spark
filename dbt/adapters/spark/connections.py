@@ -24,8 +24,8 @@ from datetime import datetime
 import sqlparams
 
 from hologram.helpers import StrEnum
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Any, Dict, Optional
 try:
     from thrift.transport.TSSLSocket import TSSLSocket
     import thrift
@@ -72,6 +72,8 @@ class SparkCredentials(Credentials):
     connect_retries: int = 0
     connect_timeout: int = 10
     use_ssl: bool = False
+    server_side_parameters: Dict[str, Any] = field(default_factory=dict)
+    retry_all: bool = False
 
     @classmethod
     def __pre_deserialize__(cls, data):
@@ -94,13 +96,17 @@ class SparkCredentials(Credentials):
             )
         self.database = None
 
-        if self.method == SparkConnectionMethod.ODBC and pyodbc is None:
-            raise dbt.exceptions.RuntimeException(
-                f"{self.method} connection method requires "
-                "additional dependencies. \n"
-                "Install the additional required dependencies with "
-                "`pip install dbt-spark[ODBC]`"
-            )
+        if self.method == SparkConnectionMethod.ODBC:
+            try:
+                import pyodbc    # noqa: F401
+            except ImportError as e:
+                raise dbt.exceptions.RuntimeException(
+                    f"{self.method} connection method requires "
+                    "additional dependencies. \n"
+                    "Install the additional required dependencies with "
+                    "`pip install dbt-spark[ODBC]`\n\n"
+                    f"ImportError({e.msg})"
+                ) from e
 
         if (
             self.method == SparkConnectionMethod.ODBC and
@@ -128,6 +134,10 @@ class SparkCredentials(Credentials):
     @property
     def type(self):
         return 'spark'
+
+    @property
+    def unique_field(self):
+        return self.host
 
     def _connection_keys(self):
         return ('host', 'port', 'cluster',
@@ -401,6 +411,12 @@ class SparkConnectionManager(SQLConnectionManager):
                     dbt_spark_version = __version__.version
                     user_agent_entry = f"fishtown-analytics-dbt-spark/{dbt_spark_version} (Databricks)"  # noqa
 
+                    # http://simba.wpengine.com/products/Spark/doc/ODBC_InstallGuide/unix/content/odbc/hi/configuring/serverside.htm
+                    ssp = {
+                        f"SSP_{k}": f"{{{v}}}"
+                        for k, v in creds.server_side_parameters.items()
+                    }
+
                     # https://www.simba.com/products/Spark/doc/v2/ODBC_InstallGuide/unix/content/odbc/options/driver.htm
                     connection_str = _build_odbc_connnection_string(
                         DRIVER=creds.driver,
@@ -414,6 +430,8 @@ class SparkConnectionManager(SQLConnectionManager):
                         ThriftTransport=2,
                         SSL=1,
                         UserAgentEntry=user_agent_entry,
+                        LCaseSspKeyName=0 if ssp else 1,
+                        **ssp,
                     )
 
                     conn = pyodbc.connect(connection_str, autocommit=True)
@@ -436,6 +454,16 @@ class SparkConnectionManager(SQLConnectionManager):
                 if retryable_message and creds.connect_retries > 0:
                     msg = (
                         f"Warning: {retryable_message}\n\tRetrying in "
+                        f"{creds.connect_timeout} seconds "
+                        f"({i} of {creds.connect_retries})"
+                    )
+                    logger.warning(msg)
+                    time.sleep(creds.connect_timeout)
+                elif creds.retry_all and creds.connect_retries > 0:
+                    msg = (
+                        f"Warning: {getattr(exc, 'message', 'No message')}, "
+                        f"retrying due to 'retry_all' configuration "
+                        f"set to true.\n\tRetrying in "
                         f"{creds.connect_timeout} seconds "
                         f"({i} of {creds.connect_retries})"
                     )
