@@ -176,19 +176,6 @@ jobs:
           pip --version
           tox --version
           
-      docker:
-        - image: fishtownanalytics/test-container:10
-        - image: godatadriven/spark:2
-          environment:
-            WAIT_FOR: localhost:5432
-          command: >
-            --class org.apache.spark.sql.hive.thriftserver.HiveThriftServer2
-            --name Thrift JDBC/ODBC Server
-            --conf spark.hadoop.javax.jdo.option.ConnectionURL=jdbc:postgresql://localhost/metastore
-            --conf spark.hadoop.javax.jdo.option.ConnectionUserName=dbt
-            --conf spark.hadoop.javax.jdo.option.ConnectionPassword=dbt
-            --conf spark.hadoop.javax.jdo.option.ConnectionDriverName=org.postgresql.Driver
-
       - name: Run tox (Apache Spark)
         if: matrix.adapter == 'apache_spark'
         run: tox
