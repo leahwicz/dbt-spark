@@ -182,7 +182,7 @@ jobs:
         
       - name: Run tox (Databricks HTTP)
         if: matrix.adapter == 'databricks_http'
-        env: &databricks-creds
+        env:
           DBT_DATABRICKS_HOST_NAME:  ${{ secrets.DBT_DATABRICKS_HOST_NAME }}
           DBT_DATABRICKS_CLUSTER_NAME: ${{ secrets.DBT_DATABRICKS_CLUSTER_NAME }}
           DBT_DATABRICKS_TOKEN: ${{ secrets.DBT_DATABRICKS_TOKEN }}
@@ -191,12 +191,20 @@ jobs:
         
       - name: Run tox (Databricks HTTP)
         if: matrix.adapter == 'databricks_cluster'
-        env: *databricks-creds
+        env:
+          DBT_DATABRICKS_HOST_NAME:  ${{ secrets.DBT_DATABRICKS_HOST_NAME }}
+          DBT_DATABRICKS_CLUSTER_NAME: ${{ secrets.DBT_DATABRICKS_CLUSTER_NAME }}
+          DBT_DATABRICKS_TOKEN: ${{ secrets.DBT_DATABRICKS_TOKEN }}
+          ODBC_DRIVER: Simba
         run: tox
         
       - name: Run tox (Databricks HTTP)
         if: matrix.adapter == 'databricks_endpoint'
-        env: *databricks-creds
+        env:
+          DBT_DATABRICKS_HOST_NAME:  ${{ secrets.DBT_DATABRICKS_HOST_NAME }}
+          DBT_DATABRICKS_CLUSTER_NAME: ${{ secrets.DBT_DATABRICKS_CLUSTER_NAME }}
+          DBT_DATABRICKS_TOKEN: ${{ secrets.DBT_DATABRICKS_TOKEN }}
+          ODBC_DRIVER: Simba
         run: tox
 
       - uses: actions/upload-artifact@v2
