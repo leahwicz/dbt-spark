@@ -169,6 +169,14 @@ jobs:
           pip --version
           tox --version
           
+      - name: Setup Apache Spark
+        # You may pin to the exact commit or the version.
+        # uses: vemonet/setup-spark@e8cb86fc6de0c73c110a9744d8a0d526384b5b2d
+        uses: vemonet/setup-spark@v1
+        with:
+          # Apache Spark version to install, see https://spark.apache.org/downloads.html
+          spark-version: 3.1.2
+          
       - name: Run tox (Apache Spark)
         if: matrix.adapter == 'apache_spark'
         run: tox
