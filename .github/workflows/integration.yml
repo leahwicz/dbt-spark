@@ -163,6 +163,7 @@ jobs:
 
       - name: Install python dependencies
         run: |
+          sudo apt-get install libsasl2-dev
           pip install  --user --upgrade pip
           pip install tox
           pip --version
