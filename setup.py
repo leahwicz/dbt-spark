@@ -9,7 +9,7 @@ if sys.version_info < (3, 6):
     print('Please upgrade to Python 3.6 or higher.')
     sys.exit(1)
 
-
+    
 # require version of setuptools that supports find_namespace_packages
 from setuptools import setup
 try:
