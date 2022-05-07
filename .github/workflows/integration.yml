@@ -161,7 +161,6 @@ jobs:
           tox --version
           
       - name: Run tox (redshift)
-        if: matrix.adapter == 'redshift'
         env:
           REDSHIFT_TEST_DBNAME: ${{ secrets.REDSHIFT_TEST_DBNAME }}
           REDSHIFT_TEST_PASS: ${{ secrets.REDSHIFT_TEST_PASS }}
