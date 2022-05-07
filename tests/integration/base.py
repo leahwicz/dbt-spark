@@ -23,8 +23,14 @@ from dbt.adapters.factory import get_adapter, reset_adapters, register_adapter
 from dbt.clients.jinja import template_cache
 from dbt.config import RuntimeConfig
 from dbt.context import providers
-from dbt.logger import GLOBAL_LOGGER as logger, log_manager
+from dbt.logger import log_manager
+from dbt.events.functions import (
+    capture_stdout_logs, fire_event, setup_event_logger, stop_capture_stdout_logs
+)
+from dbt.events import AdapterLogger
 from dbt.contracts.graph.manifest import Manifest
+
+logger = AdapterLogger("Spark")
 
 INITIAL_ROOT = os.getcwd()
 
@@ -71,6 +77,8 @@ class FakeArgs:
 
 
 class TestArgs:
+    __test__ = False
+
     def __init__(self, kwargs):
         self.which = 'run'
         self.single_threaded = False
@@ -152,8 +160,9 @@ class DBTIntegrationTest(unittest.TestCase):
                         'user': 'dbt',
                         'method': 'thrift',
                         'port': 10000,
-                        'connect_retries': 5,
-                        'connect_timeout': 60,
+                        'connect_retries': 3,
+                        'connect_timeout': 5,
+                        'retry_all': True,
                         'schema': self.unique_schema()
                     },
                 },
@@ -176,6 +185,9 @@ class DBTIntegrationTest(unittest.TestCase):
                         'token': os.getenv('DBT_DATABRICKS_TOKEN'),
                         'driver': os.getenv('ODBC_DRIVER'),
                         'port': 443,
+                        'connect_retries': 3,
+                        'connect_timeout': 5,
+                        'retry_all': True,
                         'schema': self.unique_schema()
                     },
                 },
@@ -198,6 +210,9 @@ class DBTIntegrationTest(unittest.TestCase):
                         'token': os.getenv('DBT_DATABRICKS_TOKEN'),
                         'driver': os.getenv('ODBC_DRIVER'),
                         'port': 443,
+                        'connect_retries': 3,
+                        'connect_timeout': 5,
+                        'retry_all': True,
                         'schema': self.unique_schema()
                     },
                 },
@@ -269,6 +284,7 @@ class DBTIntegrationTest(unittest.TestCase):
         os.chdir(self.initial_dir)
         # before we go anywhere, collect the initial path info
         self._logs_dir = os.path.join(self.initial_dir, 'logs', self.prefix)
+        setup_event_logger(self._logs_dir)
         _really_makedirs(self._logs_dir)
         self.test_original_source_path = _pytest_get_test_root()
         self.test_root_dir = self._generate_test_root_dir()
@@ -439,16 +455,12 @@ class DBTIntegrationTest(unittest.TestCase):
 
     def run_dbt_and_capture(self, *args, **kwargs):
         try:
-            initial_stdout = log_manager.stdout
-            initial_stderr = log_manager.stderr
-            stringbuf = io.StringIO()
-            log_manager.set_output_stream(stringbuf)
-
+            stringbuf = capture_stdout_logs()
             res = self.run_dbt(*args, **kwargs)
             stdout = stringbuf.getvalue()
 
         finally:
-            log_manager.set_output_stream(initial_stdout, initial_stderr)
+            stop_capture_stdout_logs()
 
         return res, stdout
 

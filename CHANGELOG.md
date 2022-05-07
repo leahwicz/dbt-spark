@@ -1,4 +1,74 @@
+## dbt-spark 1.1.0 (TBD)
+
+### Features
+- Add session connection method ([#272](https://github.com/dbt-labs/dbt-spark/issues/272), [#279](https://github.com/dbt-labs/dbt-spark/pull/279))
+- rename file to match reference to dbt-core ([#344](https://github.com/dbt-labs/dbt-spark/pull/344))
+
+### Under the hood
+- Use dbt.tests.adapter.basic in test suite ([#298](https://github.com/dbt-labs/dbt-spark/issues/298), [#299](https://github.com/dbt-labs/dbt-spark/pull/299))
+- Make internal macros use macro dispatch to be overridable in child adapters ([#319](https://github.com/dbt-labs/dbt-spark/issues/319), [#320](https://github.com/dbt-labs/dbt-spark/pull/320))
+- Override adapter method 'run_sql_for_tests' ([#323](https://github.com/dbt-labs/dbt-spark/issues/323), [#324](https://github.com/dbt-labs/dbt-spark/pull/324))
+- when a table or view doesn't exist, 'adapter.get_columns_in_relation' will return empty list instead of fail ([#328]https://github.com/dbt-labs/dbt-spark/pull/328)
+
+### Contributors
+- [@JCZuurmond](https://github.com/dbt-labs/dbt-spark/pull/279) ( [#279](https://github.com/dbt-labs/dbt-spark/pull/279))
+- [@ueshin](https://github.com/ueshin) ([#320](https://github.com/dbt-labs/dbt-spark/pull/320))
+
+## dbt-spark 1.1.0b1 (March 23, 2022)
+
+### Features
+- Adds new integration test to check against new ability to allow unique_key to be a list. ([#282](https://github.com/dbt-labs/dbt-spark/issues/282)), [#291](https://github.com/dbt-labs/dbt-spark/pull/291))
+
+### Fixes
+- Closes the connection properly ([#280](https://github.com/dbt-labs/dbt-spark/issues/280), [#285](https://github.com/dbt-labs/dbt-spark/pull/285))
+
+### Under the hood
+- get_response -> AdapterResponse ([#265](https://github.com/dbt-labs/dbt-spark/pull/265))
+- Adding stale Actions workflow ([#275](https://github.com/dbt-labs/dbt-spark/pull/275))
+- Update plugin author name (`fishtown-analytics` &rarr; `dbt-labs`) in ODBC user agent ([#288](https://github.com/dbt-labs/dbt-spark/pull/288))
+- Configure insert_overwrite models to use parquet ([#301](https://github.com/dbt-labs/dbt-spark/pull/301))
+
+### Contributors
+- [@amychen1776](https://github.com/amychen1776) ([#288](https://github.com/dbt-labs/dbt-spark/pull/288))
+- [@ueshin](https://github.com/ueshin) ([#285](https://github.com/dbt-labs/dbt-spark/pull/285))
+
+## dbt-spark 1.0.1rc0 (Release TBD)
+
+### Fixes
+- Closes the connection properly ([#280](https://github.com/dbt-labs/dbt-spark/issues/280), [#285](https://github.com/dbt-labs/dbt-spark/pull/285))
+
+### Contributors
+- [@ueshin](https://github.com/ueshin) ([#285](https://github.com/dbt-labs/dbt-spark/pull/285))
+
+## dbt-spark 1.0.0 (December 3, 2021)
+
+### Fixes
+- Incremental materialization corrected to respect `full_refresh` config, by using `should_full_refresh()` macro ([#260](https://github.com/dbt-labs/dbt-spark/issues/260), [#262](https://github.com/dbt-labs/dbt-spark/pull/262/))
+
+### Contributors
+- [@grindheim](https://github.com/grindheim) ([#262](https://github.com/dbt-labs/dbt-spark/pull/262/))
+
+## dbt-spark 1.0.0rc2 (November 24, 2021)
+
+### Features
+- Add support for Apache Hudi (hudi file format) which supports incremental merge strategies ([#187](https://github.com/dbt-labs/dbt-spark/issues/187), [#210](https://github.com/dbt-labs/dbt-spark/pull/210))
+
+### Under the hood
+- Refactor seed macros: remove duplicated code from dbt-core, and provide clearer logging of SQL parameters that differ by connection method ([#249](https://github.com/dbt-labs/dbt-spark/issues/249), [#250](https://github.com/dbt-labs/dbt-snowflake/pull/250))
+- Replace `sample_profiles.yml` with `profile_template.yml`, for use with new `dbt init` ([#247](https://github.com/dbt-labs/dbt-spark/pull/247))
+
+### Contributors
+- [@vingov](https://github.com/vingov) ([#210](https://github.com/dbt-labs/dbt-spark/pull/210))
+
+## dbt-spark 1.0.0rc1 (November 10, 2021)
+
+### Under the hood
+- Remove official support for python 3.6, which is reaching end of life on December 23, 2021 ([dbt-core#4134](https://github.com/dbt-labs/dbt-core/issues/4134), [#253](https://github.com/dbt-labs/dbt-snowflake/pull/253))
+- Add support for structured logging ([#251](https://github.com/dbt-labs/dbt-spark/pull/251))
+
 ## dbt-spark 0.21.1 (Release TBD)
+
+## dbt-spark 0.21.1rc1 (November 3, 2021)
 
 ### Fixes
 - Fix `--store-failures` for tests, by suppressing irrelevant error in `comment_clause()` macro ([#232](https://github.com/dbt-labs/dbt-spark/issues/232), [#233](https://github.com/dbt-labs/dbt-spark/pull/233))

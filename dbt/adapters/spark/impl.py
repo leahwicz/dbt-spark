@@ -16,8 +16,10 @@ from dbt.adapters.spark import SparkRelation
 from dbt.adapters.spark import SparkColumn
 from dbt.adapters.base import BaseRelation
 from dbt.clients.agate_helper import DEFAULT_TYPE_TESTER
-from dbt.logger import GLOBAL_LOGGER as logger
+from dbt.events import AdapterLogger
 from dbt.utils import executor
+
+logger = AdapterLogger("Spark")
 
 GET_COLUMNS_IN_RELATION_MACRO_NAME = 'get_columns_in_relation'
 LIST_SCHEMAS_MACRO_NAME = 'list_schemas'
@@ -68,6 +70,13 @@ class SparkAdapter(SQLAdapter):
     INFORMATION_OWNER_REGEX = re.compile(r"^Owner: (.*)$", re.MULTILINE)
     INFORMATION_STATISTICS_REGEX = re.compile(
         r"^Statistics: (.*)$", re.MULTILINE)
+    HUDI_METADATA_COLUMNS = [
+        '_hoodie_commit_time',
+        '_hoodie_commit_seqno',
+        '_hoodie_record_key',
+        '_hoodie_partition_path',
+        '_hoodie_file_name'
+    ]
 
     Relation = SparkRelation
     Column = SparkColumn
@@ -143,12 +152,14 @@ class SparkAdapter(SQLAdapter):
             rel_type = RelationType.View \
                 if 'Type: VIEW' in information else RelationType.Table
             is_delta = 'Provider: delta' in information
+            is_hudi = 'Provider: hudi' in information
             relation = self.Relation.create(
                 schema=_schema,
                 identifier=name,
                 type=rel_type,
                 information=information,
                 is_delta=is_delta,
+                is_hudi=is_hudi,
             )
             relations.append(relation)
 
@@ -220,8 +231,24 @@ class SparkAdapter(SQLAdapter):
             # return relation's schema. if columns are empty from cache,
             # use get_columns_in_relation spark macro
             # which would execute 'describe extended tablename' query
-            rows: List[agate.Row] = super().get_columns_in_relation(relation)
-            columns = self.parse_describe_extended(relation, rows)
+            try:
+                rows: List[agate.Row] = super().get_columns_in_relation(relation)
+                columns = self.parse_describe_extended(relation, rows)
+            except dbt.exceptions.RuntimeException as e:
+                # spark would throw error when table doesn't exist, where other
+                # CDW would just return and empty list, normalizing the behavior here
+                errmsg = getattr(e, "msg", "")
+                if (
+                    "Table or view not found" in errmsg or
+                    "NoSuchTableException" in errmsg
+                ):
+                    pass
+                else:
+                    raise e
+
+        # strip hudi metadata columns.
+        columns = [x for x in columns
+                   if x.name not in self.HUDI_METADATA_COLUMNS]
         return columns
 
     def parse_columns_from_information(
@@ -348,6 +375,30 @@ class SparkAdapter(SQLAdapter):
         )
 
         return sql
+
+    # This is for use in the test suite
+    # Spark doesn't have 'commit' and 'rollback', so this override
+    # doesn't include those commands.
+    def run_sql_for_tests(self, sql, fetch, conn):
+        cursor = conn.handle.cursor()
+        try:
+            cursor.execute(sql)
+            if fetch == "one":
+                if hasattr(cursor, 'fetchone'):
+                    return cursor.fetchone()
+                else:
+                    # AttributeError: 'PyhiveConnectionWrapper' object has no attribute 'fetchone'
+                    return cursor.fetchall()[0]
+            elif fetch == "all":
+                return cursor.fetchall()
+            else:
+                return
+        except BaseException as e:
+            print(sql)
+            print(e)
+            raise
+        finally:
+            conn.transaction_open = False
 
 
 # spark does something interesting with joins when both tables have the same

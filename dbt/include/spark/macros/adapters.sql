@@ -1,11 +1,20 @@
 {% macro file_format_clause() %}
+  {{ return(adapter.dispatch('file_format_clause', 'dbt')()) }}
+{%- endmacro -%}
+
+{% macro spark__file_format_clause() %}
   {%- set file_format = config.get('file_format', validator=validation.any[basestring]) -%}
   {%- if file_format is not none %}
     using {{ file_format }}
   {%- endif %}
 {%- endmacro -%}
 
+
 {% macro location_clause() %}
+  {{ return(adapter.dispatch('location_clause', 'dbt')()) }}
+{%- endmacro -%}
+
+{% macro spark__location_clause() %}
   {%- set location_root = config.get('location_root', validator=validation.any[basestring]) -%}
   {%- set identifier = model['alias'] -%}
   {%- if location_root is not none %}
@@ -13,8 +22,24 @@
   {%- endif %}
 {%- endmacro -%}
 
+
 {% macro options_clause() -%}
+  {{ return(adapter.dispatch('options_clause', 'dbt')()) }}
+{%- endmacro -%}
+
+{% macro spark__options_clause() -%}
   {%- set options = config.get('options') -%}
+  {%- if config.get('file_format') == 'hudi' -%}
+    {%- set unique_key = config.get('unique_key') -%}
+    {%- if unique_key is not none and options is none -%}
+      {%- set options = {'primaryKey': config.get('unique_key')} -%}
+    {%- elif unique_key is not none and options is not none and 'primaryKey' not in options -%}
+      {%- set _ = options.update({'primaryKey': config.get('unique_key')}) -%}
+    {%- elif options is not none and 'primaryKey' in options and options['primaryKey'] != unique_key -%}
+      {{ exceptions.raise_compiler_error("unique_key and options('primaryKey') should be the same column(s).") }}
+    {%- endif %}
+  {%- endif %}
+
   {%- if options is not none %}
     options (
       {%- for option in options -%}
@@ -24,7 +49,12 @@
   {%- endif %}
 {%- endmacro -%}
 
+
 {% macro comment_clause() %}
+  {{ return(adapter.dispatch('comment_clause', 'dbt')()) }}
+{%- endmacro -%}
+
+{% macro spark__comment_clause() %}
   {%- set raw_persist_docs = config.get('persist_docs', {}) -%}
 
   {%- if raw_persist_docs is mapping -%}
@@ -37,7 +67,12 @@
   {% endif %}
 {%- endmacro -%}
 
+
 {% macro partition_cols(label, required=false) %}
+  {{ return(adapter.dispatch('partition_cols', 'dbt')(label, required)) }}
+{%- endmacro -%}
+
+{% macro spark__partition_cols(label, required=false) %}
   {%- set cols = config.get('partition_by', validator=validation.any[list, basestring]) -%}
   {%- if cols is not none %}
     {%- if cols is string -%}
@@ -54,6 +89,10 @@
 
 
 {% macro clustered_cols(label, required=false) %}
+  {{ return(adapter.dispatch('clustered_cols', 'dbt')(label, required)) }}
+{%- endmacro -%}
+
+{% macro spark__clustered_cols(label, required=false) %}
   {%- set cols = config.get('clustered_by', validator=validation.any[list, basestring]) -%}
   {%- set buckets = config.get('buckets', validator=validation.any[int]) -%}
   {%- if (cols is not none) and (buckets is not none) %}
@@ -69,6 +108,7 @@
   {%- endif %}
 {%- endmacro -%}
 
+
 {% macro fetch_tbl_properties(relation) -%}
   {% call statement('list_properties', fetch_result=True) -%}
     SHOW TBLPROPERTIES {{ relation }}
@@ -77,11 +117,16 @@
 {%- endmacro %}
 
 
-{#-- We can't use temporary tables with `create ... as ()` syntax #}
 {% macro create_temporary_view(relation, sql) -%}
+  {{ return(adapter.dispatch('create_temporary_view', 'dbt')(relation, sql)) }}
+{%- endmacro -%}
+
+{#-- We can't use temporary tables with `create ... as ()` syntax #}
+{% macro spark__create_temporary_view(relation, sql) -%}
   create temporary view {{ relation.include(schema=false) }} as
     {{ sql }}
 {% endmacro %}
+
 
 {% macro spark__create_table_as(temporary, relation, sql) -%}
   {% if temporary -%}
@@ -181,7 +226,7 @@
 {% endmacro %}
 
 {% macro spark__alter_column_comment(relation, column_dict) %}
-  {% if config.get('file_format', validator=validation.any[basestring]) == 'delta' %}
+  {% if config.get('file_format', validator=validation.any[basestring]) in ['delta', 'hudi'] %}
     {% for column_name in column_dict %}
       {% set comment = column_dict[column_name]['description'] %}
       {% set escaped_comment = comment | replace('\'', '\\\'') %}

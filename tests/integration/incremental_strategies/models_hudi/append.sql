@@ -1,7 +1,7 @@
 {{ config(
     materialized = 'incremental',
-    incremental_strategy = 'insert_overwrite',
-    file_format = 'parquet',
+    incremental_strategy = 'append',
+    file_format = 'hudi',
 ) }}
 
 {% if not is_incremental() %}

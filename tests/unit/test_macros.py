@@ -15,7 +15,9 @@ class TestSparkMacros(unittest.TestCase):
             'validation': mock.Mock(),
             'model': mock.Mock(),
             'exceptions': mock.Mock(),
-            'config': mock.Mock()
+            'config': mock.Mock(),
+            'adapter': mock.Mock(),
+            'return': lambda r: r,
         }
         self.default_context['config'].get = lambda key, default=None, **kwargs: self.config.get(key, default)
 
@@ -24,6 +26,11 @@ class TestSparkMacros(unittest.TestCase):
 
     def __run_macro(self, template, name, temporary, relation, sql):
         self.default_context['model'].alias = relation
+
+        def dispatch(macro_name, macro_namespace=None, packages=None):
+            return getattr(template.module, f'spark__{macro_name}')
+        self.default_context['adapter'].dispatch = dispatch
+
         value = getattr(template.module, name)(temporary, relation, sql)
         return re.sub(r'\s\s+', ' ', value)
 
@@ -43,6 +50,10 @@ class TestSparkMacros(unittest.TestCase):
         sql = self.__run_macro(template, 'spark__create_table_as', False, 'my_table', 'select 1').strip()
         self.assertEqual(sql, "create or replace table my_table using delta as select 1")
 
+        self.config['file_format'] = 'hudi'
+        sql = self.__run_macro(template, 'spark__create_table_as', False, 'my_table', 'select 1').strip()
+        self.assertEqual(sql, "create table my_table using hudi as select 1")
+
     def test_macros_create_table_as_options(self):
         template = self.__get_template('adapters.sql')
 
@@ -50,6 +61,30 @@ class TestSparkMacros(unittest.TestCase):
         self.config['options'] = {"compression": "gzip"}
         sql = self.__run_macro(template, 'spark__create_table_as', False, 'my_table', 'select 1').strip()
         self.assertEqual(sql, 'create or replace table my_table using delta options (compression "gzip" ) as select 1')
+
+        self.config['file_format'] = 'hudi'
+        sql = self.__run_macro(template, 'spark__create_table_as', False, 'my_table', 'select 1').strip()
+        self.assertEqual(sql, 'create table my_table using hudi options (compression "gzip" ) as select 1')
+
+    def test_macros_create_table_as_hudi_options(self):
+        template = self.__get_template('adapters.sql')
+
+        self.config['file_format'] = 'hudi'
+        self.config['unique_key'] = 'id'
+        sql = self.__run_macro(template, 'spark__create_table_as', False, 'my_table', 'select 1 as id').strip()
+        self.assertEqual(sql, 'create table my_table using hudi options (primaryKey "id" ) as select 1 as id')
+
+        self.config['file_format'] = 'hudi'
+        self.config['unique_key'] = 'id'
+        self.config['options'] = {'primaryKey': 'id'}
+        sql = self.__run_macro(template, 'spark__create_table_as', False, 'my_table', 'select 1 as id').strip()
+        self.assertEqual(sql, 'create table my_table using hudi options (primaryKey "id" ) as select 1 as id')
+
+        self.config['file_format'] = 'hudi'
+        self.config['unique_key'] = 'uuid'
+        self.config['options'] = {'primaryKey': 'id'}
+        sql = self.__run_macro(template, 'spark__create_table_as', False, 'my_table', 'select 1 as id')
+        self.assertIn('mock.raise_compiler_error()', sql)
 
     def test_macros_create_table_as_partition(self):
         template = self.__get_template('adapters.sql')
@@ -112,4 +147,11 @@ class TestSparkMacros(unittest.TestCase):
         self.assertEqual(
             sql,
             "create or replace table my_table using delta partitioned by (partition_1,partition_2) clustered by (cluster_1,cluster_2) into 1 buckets location '/mnt/root/my_table' comment 'Description Test' as select 1"
+        )
+
+        self.config['file_format'] = 'hudi'
+        sql = self.__run_macro(template, 'spark__create_table_as', False, 'my_table', 'select 1').strip()
+        self.assertEqual(
+            sql,
+            "create table my_table using hudi partitioned by (partition_1,partition_2) clustered by (cluster_1,cluster_2) into 1 buckets location '/mnt/root/my_table' comment 'Description Test' as select 1"
         )
