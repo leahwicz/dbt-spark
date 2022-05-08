@@ -127,7 +127,7 @@ jobs:
       matrix: ${{ fromJSON(needs.test-metadata.outputs.matrix) }}
 
     env:
-      TOXENV: integration-${{ matrix.adapter }}
+      TOXENV: integration-spark-session
       PYTEST_ADDOPTS: "-v --color=yes -n4 --csv integration_results.csv"
       DBT_INVOCATION_ENV: github-actions
 
