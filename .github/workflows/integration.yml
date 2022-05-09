@@ -106,7 +106,7 @@ jobs:
             console.log(matrix)
             return matrix
   test:
-    name: ${{ matrix.adapter }} / python ${{ matrix.python-version }} / ${{ matrix.os }}
+    name: ${{ matrix.adapter }} / python ${{ matrix.python-version }}
 
     # run if not a PR from a forked repository or has a label to mark as safe to test
     # also checks that the matrix generated is not empty
@@ -118,7 +118,7 @@ jobs:
         github.event.pull_request.head.repo.full_name == github.repository ||
         contains(github.event.pull_request.labels.*.name, 'ok to test')
       )
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     needs: test-metadata
 
@@ -127,7 +127,7 @@ jobs:
       matrix: ${{ fromJSON(needs.test-metadata.outputs.matrix) }}
 
     env:
-      TOXENV: integration-spark
+      TOXENV: integration-spark-thrift
       PYTEST_ADDOPTS: "-v --color=yes -n4 --csv integration_results.csv"
       DBT_INVOCATION_ENV: github-actions
 
@@ -154,7 +154,8 @@ jobs:
 
       - name: Install python dependencies
         run: |
-          sudo apt-get install libsasl2-dev
+          sudo apt-get update
+          sudo apt-get install -y git gcc g++ unixodbc-dev libsasl2-dev
           pip install --user --upgrade pip
           pip install tox
           pip --version
