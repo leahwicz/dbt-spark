@@ -71,11 +71,12 @@ jobs:
     name: unit test / python ${{ matrix.python-version }}
 
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.7, 3.8, 3.9, 3.10]
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
 
     env:
       TOXENV: "unit"
